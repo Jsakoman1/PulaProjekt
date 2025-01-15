@@ -1,162 +1,95 @@
 from flask import Flask, render_template, request, redirect, url_for
+from tables_metadata import TABLES_METADATA  # Import metadata
 import mysql.connector
-
-def get_db_connection():
-    connection = mysql.connector.connect(
-        host='localhost',  # MySQL host
-        user='root',  # MySQL username
-        password='34000',  # MySQL password
-        database='pulaprojekt2'  # Database name
-    )
-    return connection
 
 app = Flask(__name__)
 
-# Home route (root)
+def get_db_connection():
+    return mysql.connector.connect(
+        host='localhost',
+        user='root',
+        password='34000',
+        database='pulaprojekt2'
+    )
+
 @app.route('/')
 def home():
-    return render_template('index.html')  # Render a home page template
+    return render_template('index.html', entities=TABLES_METADATA.keys())
 
-# Clients Routes
-@app.route('/clients')
-def index_clients():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute('SELECT * FROM Clients')
-    clients = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return render_template('clients.html', clients=clients)
-
-@app.route('/clients/create', methods=['POST'])
-def create_client():
-    name = request.form['name']
-    contact_name = request.form['contact_name']
-    contact_phone = request.form['contact_phone']
-    contact_email = request.form['contact_email']
-    address = request.form['address']
+@app.route('/<string:entity>')
+def index(entity):
+    if entity not in TABLES_METADATA:
+        return f"Entity '{entity}' not found.", 404
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO Clients (name, contact_name, contact_phone, contact_email, address)
-        VALUES (%s, %s, %s, %s, %s)
-    ''', (name, contact_name, contact_phone, contact_email, address))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return redirect(url_for('index_clients'))
-
-
-@app.route('/clients/delete/<int:client_id>', methods=['POST'])
-def delete_client(client_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM Clients WHERE client_id = %s', (client_id,))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return redirect(url_for('index_clients'))
-
-# Employees Routes
-@app.route('/employees')
-def index_employees():
+    metadata = TABLES_METADATA[entity]
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute('SELECT * FROM Employees')
-    employees = cursor.fetchall()
+    cursor.execute(f"SELECT * FROM {metadata['table_name']}")
+    entries = cursor.fetchall()
     cursor.close()
     conn.close()
-    return render_template('employees.html', employees=employees)
+    
+    return render_template('index.html', 
+                           title=metadata['table_name'], 
+                           entity_name=entity, 
+                           entity_name_plural=entity + "s",
+                           fields=[{'name': field, 'label': label, 'type': 'text', 'required': True} for field, label in zip(metadata['fields'], metadata['labels'])],
+                           entries=entries,
+                           table_headers=metadata['labels'],
+                           table_keys=metadata['fields'],
+                           primary_key=metadata['primary_key'],
+                           add_url=f"/{entity}/create",
+                           delete_url=f"/{entity}/delete",
+                           entities=TABLES_METADATA.keys())
 
+@app.route('/<string:entity>/create', methods=['POST'])
+def create_entity(entity):
+    if entity not in TABLES_METADATA:
+        return f"Entity '{entity}' not found.", 404
 
-@app.route('/employees/create', methods=['GET', 'POST'])
-def create_employee():
-    if request.method == 'POST':
-        # Safely get values from form fields, defaulting to None if empty
-        first_name = request.form.get('first_name', None) or None
-        last_name = request.form.get('last_name', None) or None
-        position = request.form.get('position', None) or None
-        hire_date = request.form.get('hire_date', None) or None
-        salary = request.form.get('salary', None) or None
-        department_id = request.form.get('department_id', None) or None
-        status = request.form.get('status', None)  # If empty, it will be None
-        if status == "":  # Explicitly set empty string to None for ENUM fields
-            status = None
-        phone_number = request.form.get('phone_number', None) or None
-        address = request.form.get('address', None) or None
-        email = request.form.get('email', None) or None
-        date_of_birth = request.form.get('date_of_birth', None) or None
+    metadata = TABLES_METADATA[entity]
+    conn = get_db_connection()
+    cursor = conn.cursor()
 
-        # Ensure required fields are provided
-        if not first_name or not last_name:
-            return "First name and last name are required", 400
-        
-        # Proceed with the database insertion
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO Employees (first_name, last_name, position, hire_date, salary, department_id, status,
-                                   phone_number, address, email, date_of_birth)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ''', (first_name, last_name, position, hire_date, salary, department_id, status, phone_number, address, email, date_of_birth))
+    # Gather form data
+    values = [request.form.get(field) for field in metadata['fields']]
+    placeholders = ', '.join(['%s'] * len(metadata['fields']))
+    query = f"INSERT INTO {metadata['table_name']} ({', '.join(metadata['fields'])}) VALUES ({placeholders})"
+
+    try:
+        cursor.execute(query, values)
         conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return f"An error occurred: {e}", 500
+    finally:
         cursor.close()
         conn.close()
 
-        return redirect(url_for('index_employees'))
-    
-    return render_template('create_employee.html')
+    return redirect(url_for('index', entity=entity))
 
-@app.route('/employees/delete/<int:employee_id>', methods=['POST'])
-def delete_employee(employee_id):
+@app.route('/<string:entity>/delete/<int:entry_id>', methods=['POST'])
+def delete_entity(entity, entry_id):
+    if entity not in TABLES_METADATA:
+        return f"Entity '{entity}' not found.", 404
+
+    metadata = TABLES_METADATA[entity]
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('DELETE FROM Employees WHERE employee_id = %s', (employee_id,))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return redirect(url_for('index_employees'))
 
-# Suppliers Routes
-@app.route('/suppliers')
-def index_suppliers():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute('SELECT * FROM Suppliers')
-    suppliers = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return render_template('suppliers.html', suppliers=suppliers)
+    query = f"DELETE FROM {metadata['table_name']} WHERE {metadata['primary_key']} = %s"
 
-@app.route('/suppliers/create', methods=['POST'])
-def create_supplier():
-    name = request.form['name']
-    contact_name = request.form['contact_name']
-    contact_phone = request.form['contact_phone']
-    contact_email = request.form['contact_email']
-    address = request.form['address']
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO Suppliers (name, contact_name, contact_phone, contact_email, address)
-        VALUES (%s, %s, %s, %s, %s)
-    ''', (name, contact_name, contact_phone, contact_email, address))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return redirect(url_for('index_suppliers'))
+    try:
+        cursor.execute(query, (entry_id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return f"An error occurred: {e}", 500
+    finally:
+        cursor.close()
+        conn.close()
 
-@app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
-def delete_supplier(supplier_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM Suppliers WHERE supplier_id = %s', (supplier_id,))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return redirect(url_for('index_suppliers'))
+    return redirect(url_for('index', entity=entity))
 
 if __name__ == '__main__':
     app.run(debug=True)
