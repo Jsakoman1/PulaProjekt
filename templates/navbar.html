@@ -1,0 +1,8 @@
+<!-- navbar.html -->
+<nav>
+    <a href="/">Home</a>
+    <a href="/views">Views</a>
+    {% for entity in entities %}
+    <a href="{{ url_for('index', entity=entity) }}">{{ entity.capitalize() }}</a>
+    {% endfor %}
+</nav>

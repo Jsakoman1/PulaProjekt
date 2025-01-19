@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 from tables_metadata import TABLES_METADATA  # Import metadata
+from views_metadata import VIEWS_METADATA
 import mysql.connector
 
 app = Flask(__name__)
@@ -90,6 +91,35 @@ def delete_entity(entity, entry_id):
         conn.close()
 
     return redirect(url_for('index', entity=entity))
+
+
+@app.route('/views')
+def views():
+    # Get all view names from VIEWS_METADATA
+    return render_template('views.html', views=VIEWS_METADATA.keys())
+
+@app.route('/views/<string:entity>')
+def view(entity):
+    if entity not in VIEWS_METADATA:
+        return f"View '{entity}' not found.", 404
+    
+    metadata = VIEWS_METADATA[entity]
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(f"SELECT * FROM {metadata['view_name']}")
+    entries = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return render_template('views.html', 
+                           title=metadata['view_name'], 
+                           entity_name=entity, 
+                           entity_name_plural=entity + "s",
+                           fields=[{'name': field, 'label': label, 'type': 'text', 'required': False} for field, label in zip(metadata['fields'], metadata['labels'])],
+                           entries=entries,
+                           table_headers=metadata['labels'],
+                           table_keys=metadata['fields'],
+                           primary_key=metadata['primary_key'])
 
 if __name__ == '__main__':
     app.run(debug=True)
