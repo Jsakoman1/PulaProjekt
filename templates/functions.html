@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>{{ title }}</h1>
+
+    <!-- Functions Forms -->
+    <div class="function-container">
+        <!-- Total Orders for Client -->
+        <div class="function-card">
+            <h3>Total Orders for a Client</h3>
+            <form action="/total_orders" method="get">
+                <label for="client_id">Client ID:</label>
+                <input type="number" id="client_id" name="client_id" placeholder="Enter Client ID" required>
+                <button type="submit">Get Total Orders</button>
+            </form>
+            {% if total_orders is not none %}
+            <h4>Total Orders for Client {{ client_id }}: {{ total_orders }}</h4>
+            {% endif %}
+        </div>
+
+        <!-- Active Employees in Department -->
+        <div class="function-card">
+            <h3>Active Employees in a Department</h3>
+            <form action="/active_employees" method="get">
+                <label for="department_id">Department ID:</label>
+                <input type="number" id="department_id" name="department_id" placeholder="Enter Department ID" required>
+                <button type="submit">Get Active Employees</button>
+            </form>
+            {% if active_employees is not none %}
+            <h4>Active Employees in Department {{ department_id }}: {{ active_employees }}</h4>
+            {% endif %}
+        </div>
+
+        <!-- Total Order Value for Client -->
+        <div class="function-card">
+            <h3>Total Order Value for a Client</h3>
+            <form action="/total_order_value" method="get">
+                <label for="client_id">Client ID:</label>
+                <input type="number" id="client_id" name="client_id" placeholder="Enter Client ID" required>
+                <button type="submit">Get Total Order Value</button>
+            </form>
+            {% if total_order_value is not none %}
+            <h4>Total Order Value for Client {{ client_id }}: {{ total_order_value }}</h4>
+            {% endif %}
+        </div>
+
+        <!-- Employee Salary -->
+        <div class="function-card">
+            <h3>Employee Salary</h3>
+            <form action="/employee_salary" method="get">
+                <label for="employee_id">Employee ID:</label>
+                <input type="number" id="employee_id" name="employee_id" placeholder="Enter Employee ID" required>
+                <button type="submit">Get Employee Salary</button>
+            </form>
+            {% if employee_salary is not none %}
+            <h4>Salary for Employee {{ employee_id }}: {{ employee_salary }}</h4>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

@@ -121,5 +121,65 @@ def view(entity):
                            table_keys=metadata['fields'],
                            primary_key=metadata['primary_key'])
 
+
+@app.route('/functions')
+def functions():
+    return render_template('functions.html', title="Functions Page")
+
+@app.route('/total_orders', methods=['GET'])
+def total_orders():
+    client_id = request.args.get('client_id')
+    total_orders = None
+    if client_id:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT GetTotalOrdersForClient(%s)", (client_id,))
+        total_orders = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+    return render_template('functions.html', total_orders=total_orders, client_id=client_id, title="Functions Page")
+
+@app.route('/active_employees', methods=['GET'])
+def active_employees():
+    department_id = request.args.get('department_id')
+    active_employees = None
+    if department_id:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT GetActiveEmployeesInDepartment(%s)", (department_id,))
+        active_employees = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+    return render_template('functions.html', active_employees=active_employees, department_id=department_id, title="Functions Page")
+
+@app.route('/total_order_value', methods=['GET'])
+def total_order_value():
+    client_id = request.args.get('client_id')
+    total_order_value = None
+    if client_id:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT GetTotalOrderValueForClient(%s)", (client_id,))
+        total_order_value = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+    return render_template('functions.html', total_order_value=total_order_value, client_id=client_id, title="Functions Page")
+
+@app.route('/employee_salary', methods=['GET'])
+def employee_salary():
+    employee_id = request.args.get('employee_id')
+    employee_salary = None
+    if employee_id:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT GetEmployeeSalary(%s)", (employee_id,))
+        employee_salary = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+    return render_template('functions.html', employee_salary=employee_salary, employee_id=employee_id, title="Functions Page")
+
+
+
+
 if __name__ == '__main__':
     app.run(debug=True)
